@@ -26,16 +26,9 @@ const upsertRecords = async (client, type, userId, records) => {
 const applyTombstones = async (client, type, userId, ids) => {
   for (const id of (ids || [])) {
     if (id == null) continue;
-    const now = Date.now();
     await client.query(
-      `INSERT INTO ${type} (user_id, id, data)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (user_id, id) DO UPDATE
-         SET data = EXCLUDED.data
-         WHERE (COALESCE((${type}.data->>'deleted')::boolean, false)) = false
-            OR (COALESCE((${type}.data->>'updatedAt')::bigint, 0)) <
-               (EXCLUDED.data->>'updatedAt')::bigint`,
-      [userId, String(id), { id, userId, deleted: true, updatedAt: now }]
+      `DELETE FROM ${type} WHERE user_id = $1 AND id = $2`,
+      [userId, String(id)]
     );
   }
 };
@@ -88,7 +81,10 @@ const getMeta = async (userId) => {
 };
 
 const getUserRecords = async (type, userId) => {
-  const r = await pool.query(`SELECT id, data FROM ${type} WHERE user_id = $1`, [userId]);
+  const r = await pool.query(
+    `SELECT id, data FROM ${type} WHERE user_id = $1 AND COALESCE((data->>'deleted')::boolean, false) = false`,
+    [userId]
+  );
   return r.rows.map((row) => row.data);
 };
 
