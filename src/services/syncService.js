@@ -1,5 +1,5 @@
 const { pool, TYPES } = require('../database/db');
-const { upsertRecords, applyTombstones, setDeviceFlag, getMeta, getUserRecords } = require('../models/syncModel');
+const { upsertRecords, applyTombstones, setDeviceFlag, getMeta, getUserRecords, getTombstones } = require('../models/syncModel');
 const { recordUserProfile } = require('../models/userProfileModel');
 
 const processSync = async ({ userId, userEmail, userName, deviceId, products, sales, expenses, deleted }) => {
@@ -18,7 +18,7 @@ const processSync = async ({ userId, userEmail, userName, deviceId, products, sa
     for (const type of TYPES) {
       const list = { products, sales, expenses }[type];
       await upsertRecords(client, type, userId, list);
-      await applyTombstones(client, type, userId, del[type]);
+      await applyTombstones(client, type, userId, del[type], deviceId);
     }
     await client.query('COMMIT');
 
@@ -37,7 +37,7 @@ const processSync = async ({ userId, userEmail, userName, deviceId, products, sa
 
 const pullUserData = async (userId, name, email) => {
   if (!userId) {
-    return { products: [], sales: [], expenses: [], meta: { pendingDeviceIds: [] } };
+    return { products: [], sales: [], expenses: [], tombstones: {}, meta: { pendingDeviceIds: [] } };
   }
 
   if (name || email) {
@@ -48,8 +48,9 @@ const pullUserData = async (userId, name, email) => {
   for (const type of TYPES) {
     out[type] = await getUserRecords(type, userId);
   }
+  const tombstones = await getTombstones(userId);
   const meta = await getMeta(userId);
-  return { ...out, meta };
+  return { ...out, tombstones, meta };
 };
 
 const markDevicePending = async (userId, deviceId) => {

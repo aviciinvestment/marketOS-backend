@@ -20,15 +20,30 @@ const upsertRecords = async (client, type, userId, records) => {
                (EXCLUDED.data->>'updatedAt')::bigint`,
       [userId, String(r.id), data]
     );
+    // If a recreated item is pushed, remove any older tombstone
+    await client.query(
+      `DELETE FROM tombstones WHERE user_id = $1 AND type = $2 AND id = $3 AND deleted_at < $4`,
+      [userId, type, String(r.id), data.updatedAt]
+    );
   }
 };
 
-const applyTombstones = async (client, type, userId, ids) => {
+const applyTombstones = async (client, type, userId, ids, deviceId = 'unknown') => {
+  const now = Date.now();
   for (const id of (ids || [])) {
     if (id == null) continue;
+    const sId = String(id);
     await client.query(
       `DELETE FROM ${type} WHERE user_id = $1 AND id = $2`,
-      [userId, String(id)]
+      [userId, sId]
+    );
+    await client.query(
+      `INSERT INTO tombstones (user_id, type, id, deleted_at, deleted_by_device)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (user_id, type, id) DO UPDATE
+         SET deleted_at = EXCLUDED.deleted_at,
+             deleted_by_device = EXCLUDED.deleted_by_device`,
+      [userId, type, sId, now, deviceId || 'unknown']
     );
   }
 };
@@ -88,6 +103,22 @@ const getUserRecords = async (type, userId) => {
   return r.rows.map((row) => row.data);
 };
 
+const getTombstones = async (userId) => {
+  const r = await pool.query(
+    `SELECT type, id, deleted_at, deleted_by_device FROM tombstones WHERE user_id = $1`,
+    [userId]
+  );
+  const out = { products: {}, sales: {}, expenses: {} };
+  for (const row of r.rows) {
+    if (!out[row.type]) out[row.type] = {};
+    out[row.type][row.id] = {
+      deletedAt: Number(row.deleted_at),
+      device: row.deleted_by_device
+    };
+  }
+  return out;
+};
+
 module.exports = {
   TYPES,
   stampRecord,
@@ -95,5 +126,6 @@ module.exports = {
   applyTombstones,
   setDeviceFlag,
   getMeta,
-  getUserRecords
+  getUserRecords,
+  getTombstones
 };

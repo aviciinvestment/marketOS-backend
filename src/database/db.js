@@ -41,6 +41,16 @@ const initDB = async () => {
       )
     `);
     await client.query(`
+      CREATE TABLE IF NOT EXISTS tombstones (
+        user_id VARCHAR(255) NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        id VARCHAR(255) NOT NULL,
+        deleted_at BIGINT NOT NULL,
+        deleted_by_device VARCHAR(255),
+        PRIMARY KEY (user_id, type, id)
+      )
+    `);
+    await client.query(`
       CREATE TABLE IF NOT EXISTS support_complaints (
         id VARCHAR(255) PRIMARY KEY,
         user_id VARCHAR(255),
