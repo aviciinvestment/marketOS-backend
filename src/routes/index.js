@@ -5,11 +5,13 @@ const healthRoutes = require('./healthRoutes');
 const syncRoutes = require('./syncRoutes');
 const supportRoutes = require('./supportRoutes');
 const adminRoutes = require('./adminRoutes');
+const profileRoutes = require('./profileRoutes');
 
 // Mount routes under /api
 router.use('/', healthRoutes);
 router.use('/', syncRoutes);
 router.use('/', supportRoutes);
 router.use('/', adminRoutes);
+router.use('/profile', profileRoutes);
 
 module.exports = router;

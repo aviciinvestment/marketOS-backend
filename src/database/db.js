@@ -67,9 +67,13 @@ const initDB = async () => {
         user_id VARCHAR(255) PRIMARY KEY,
         name VARCHAR(255),
         email VARCHAR(255),
+        avatar_url VARCHAR(510),
         last_active TIMESTAMPTZ DEFAULT now(),
         created_at TIMESTAMPTZ DEFAULT now()
       )
+    `);
+    await client.query(`
+      ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(510)
     `);
     console.log('Database initialized successfully with support_complaints & user_profiles tables');
   } catch (err) {

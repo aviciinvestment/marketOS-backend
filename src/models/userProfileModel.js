@@ -32,7 +32,7 @@ const recordUserProfile = async (userId, name, email) => {
 
 const getUserProfile = async (userId) => {
   try {
-    const res = await pool.query('SELECT name, email, last_active FROM user_profiles WHERE user_id = $1', [userId]);
+    const res = await pool.query('SELECT name, email, avatar_url, last_active FROM user_profiles WHERE user_id = $1', [userId]);
     if (res.rows[0]) {
       return res.rows[0];
     }
@@ -42,6 +42,7 @@ const getUserProfile = async (userId) => {
       return {
         name: mem.name || '',
         email: mem.email || '',
+        avatar_url: mem.avatarUrl || '',
         last_active: mem.lastActive || new Date().toISOString()
       };
     }
@@ -49,8 +50,30 @@ const getUserProfile = async (userId) => {
   return null;
 };
 
+const recordAvatarUrl = async (userId, avatarUrl) => {
+  if (!userId || !avatarUrl) return;
+  try {
+    await pool.query(
+      `INSERT INTO user_profiles (user_id, avatar_url, last_active)
+       VALUES ($1, $2, now())
+       ON CONFLICT (user_id) DO UPDATE SET
+         avatar_url = EXCLUDED.avatar_url,
+         last_active = now()`,
+      [userId, avatarUrl]
+    );
+  } catch (err) {
+    memoryUserProfiles.set(userId, {
+      ...(memoryUserProfiles.get(userId) || {}),
+      userId,
+      avatarUrl,
+      lastActive: new Date().toISOString()
+    });
+  }
+};
+
 module.exports = {
   recordUserProfile,
   getUserProfile,
+  recordAvatarUrl,
   memoryUserProfiles
 };
