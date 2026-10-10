@@ -45,9 +45,15 @@ const verify = async (req, res) => {
   }
 };
 
-// Tiny landing page shown after a mobile user completes payment in the browser,
-// telling them to return to the app (where verification happens automatically).
-const callback = (_req, res) => {
+// Landing page Paystack redirects to after a payment. For mobile it immediately
+// bounces back into the app via the `marketos://` deep link so the user lands on
+// the Insights screen automatically (no manual "close and reopen"). The reference
+// is forwarded so the app can verify the transaction on return. Web users, whose
+// callback goes straight back to their own origin, never hit this page.
+const callback = (req, res) => {
+  const reference = String(
+    (req.query && (req.query.reference || req.query.trxref)) || ''
+  );
   res.set('Content-Type', 'text/html');
   res.send(`<!doctype html>
 <html lang="en">
@@ -63,14 +69,26 @@ const callback = (_req, res) => {
         border:1px solid rgba(16,185,129,.4); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:30px; }
       h1 { font-size:20px; margin:0 0 8px; }
       p { color:#94a3b8; font-size:14px; line-height:1.5; margin:0; }
+      a { display:inline-block; margin-top:18px; padding:12px 22px; border-radius:999px;
+        background:#F5C518; color:#000; font-weight:700; text-decoration:none; }
     </style>
   </head>
   <body>
     <div class="card">
       <div class="badge">✓</div>
       <h1>Payment received</h1>
-      <p>You can now close this page and return to the marketOS app to unlock Insights.</p>
+      <p>Returning you to the marketOS app to unlock Insights…</p>
+      <a id="open-app" href="#">Open the app</a>
     </div>
+    <script>
+      (function () {
+        var ref = ${JSON.stringify(reference)};
+        var deepLink = 'marketos://paywall' + (ref ? '?reference=' + encodeURIComponent(ref) : '');
+        document.getElementById('open-app').setAttribute('href', deepLink);
+        // Auto-bounce into the app; the visible button is a manual fallback.
+        window.location.replace(deepLink);
+      })();
+    </script>
   </body>
 </html>`);
 };

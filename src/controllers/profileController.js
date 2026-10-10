@@ -1,5 +1,17 @@
 const { uploadAvatar, isConfigured } = require('../services/cloudinaryService');
-const { recordAvatarUrl } = require('../models/userProfileModel');
+const { recordAvatarUrl, getUserProfile } = require('../models/userProfileModel');
+
+const getAvatarHandler = async (req, res) => {
+  try {
+    const userId = String((req.query && req.query.userId) || '').trim();
+    if (!userId) return res.json({ url: '' });
+    const profile = await getUserProfile(userId);
+    return res.json({ url: (profile && profile.avatar_url) || '' });
+  } catch (err) {
+    console.error('Avatar fetch failed:', err);
+    return res.json({ url: '' });
+  }
+};
 
 const uploadAvatarHandler = async (req, res) => {
   try {
@@ -26,5 +38,6 @@ const uploadAvatarHandler = async (req, res) => {
 };
 
 module.exports = {
+  getAvatarHandler,
   uploadAvatarHandler
 };
