@@ -3,7 +3,19 @@ const paywallModel = require('../models/paywallModel');
 const { addServerLog } = require('./adminService');
 
 const PAYSTACK_BASE_URL = (process.env.PAYSTACK_BASE_URL || 'https://api.paystack.co').replace(/\/+$/, '');
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || '';
+// Env vars are easy to paste with surrounding quotes, an accidental "Bearer "
+// prefix, or a trailing newline/space. Paystack then rejects the Authorization
+// header with "Format is Authorization Bearer [secret key]", so sanitize it.
+const sanitizeSecretKey = (raw) => {
+  let key = String(raw || '').trim();
+  // Peel away any nesting of quotes / a "Bearer " prefix, e.g.
+  // ` "Bearer sk_test_..." ` -> `sk_test_...`.
+  for (let i = 0; i < 3; i += 1) {
+    key = key.replace(/^Bearer\s+/i, '').replace(/^['"]+|['"]+$/g, '').trim();
+  }
+  return key;
+};
+const PAYSTACK_SECRET_KEY = sanitizeSecretKey(process.env.PAYSTACK_SECRET_KEY);
 const BACKEND_PUBLIC_URL = (process.env.BACKEND_PUBLIC_URL || 'https://marketos-backend-ubk0.onrender.com').replace(/\/+$/, '');
 
 const isConfigured = () => Boolean(PAYSTACK_SECRET_KEY);
