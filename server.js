@@ -10,7 +10,17 @@ const apiRoutes = require('./src/routes');
 const app = express();
 
 app.use(cors());
-app.use(express.json({ limit: '5mb' }));
+app.use(
+  express.json({
+    limit: '5mb',
+    // Keep the raw body around for Paystack webhook signature verification.
+    verify: (req, _res, buf) => {
+      if (req.originalUrl && req.originalUrl.startsWith('/api/paywall/webhook')) {
+        req.rawBody = buf;
+      }
+    }
+  })
+);
 
 // Request Logging Middleware to capture 200, 401, 500 in real-time
 app.use((req, res, next) => {

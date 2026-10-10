@@ -1,4 +1,5 @@
 const adminService = require('../services/adminService');
+const paywallController = require('./paywallController');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 
@@ -46,11 +47,16 @@ const recordTelemetry = (req, res) => {
   res.json(result);
 };
 
+const getPaywallOverview = paywallController.getAdminOverview;
+const updatePaywallConfig = paywallController.updateAdminConfig;
+
 module.exports = {
   getStats,
   getLogs,
   clearLogs,
   getComplaints,
   updateComplaint,
-  recordTelemetry
+  recordTelemetry,
+  getPaywallOverview,
+  updatePaywallConfig
 };

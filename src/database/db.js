@@ -73,9 +73,52 @@ const initDB = async () => {
       )
     `);
     await client.query(`
-      ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(510)
+    ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(510)
     `);
-    console.log('Database initialized successfully with support_complaints & user_profiles tables');
+    // Paywall / Paystack: singleton settings row, transaction log + per-user access.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS paywall_settings (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        enabled BOOLEAN NOT NULL DEFAULT true,
+        amount_kobo BIGINT NOT NULL DEFAULT 500000,
+        duration_days INTEGER NOT NULL DEFAULT 30,
+        currency VARCHAR(10) NOT NULL DEFAULT 'NGN',
+        updated_at TIMESTAMPTZ DEFAULT now()
+      )
+    `);
+    await client.query(`
+      INSERT INTO paywall_settings (id)
+      VALUES (1)
+      ON CONFLICT (id) DO NOTHING
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS payments (
+        reference VARCHAR(120) PRIMARY KEY,
+        user_id VARCHAR(255),
+        email VARCHAR(255),
+        amount_kobo BIGINT NOT NULL DEFAULT 0,
+        currency VARCHAR(10) DEFAULT 'NGN',
+        status VARCHAR(30) NOT NULL DEFAULT 'pending',
+        channel VARCHAR(50),
+        authorization_url TEXT,
+        access_code VARCHAR(120),
+        duration_days INTEGER,
+        paid_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT now(),
+        raw JSONB
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS insight_access (
+        user_id VARCHAR(255) PRIMARY KEY,
+        email VARCHAR(255),
+        reference VARCHAR(120),
+        amount_kobo BIGINT,
+        paid_at TIMESTAMPTZ DEFAULT now(),
+        expires_at TIMESTAMPTZ NOT NULL
+      )
+    `);
+    console.log('Database initialized successfully with support_complaints, user_profiles & paywall tables');
   } catch (err) {
     console.error('Error initializing DB', err);
   } finally {
