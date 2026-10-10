@@ -67,6 +67,7 @@ const initDB = async () => {
         user_id VARCHAR(255) PRIMARY KEY,
         name VARCHAR(255),
         email VARCHAR(255),
+        mobile VARCHAR(30),
         avatar_url VARCHAR(510),
         last_active TIMESTAMPTZ DEFAULT now(),
         created_at TIMESTAMPTZ DEFAULT now()
@@ -74,6 +75,9 @@ const initDB = async () => {
     `);
     await client.query(`
     ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(510)
+    `);
+    await client.query(`
+    ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS mobile VARCHAR(30)
     `);
     // Paywall / Paystack: singleton settings row, transaction log + per-user access.
     await client.query(`

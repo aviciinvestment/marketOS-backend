@@ -1,5 +1,6 @@
 const { uploadAvatar, isConfigured } = require('../services/cloudinaryService');
-const { recordAvatarUrl, getUserProfile } = require('../models/userProfileModel');
+const { recordAvatarUrl, getUserProfile, recordUserProfile } = require('../models/userProfileModel');
+const { validateMobile } = require('../utils/validation');
 
 const getAvatarHandler = async (req, res) => {
   try {
@@ -37,7 +38,28 @@ const uploadAvatarHandler = async (req, res) => {
   }
 };
 
+const updateProfileHandler = async (req, res) => {
+  try {
+    const { userId, name, email, mobile } = req.body || {};
+    if (!userId || typeof userId !== 'string') {
+      return res.status(400).json({ error: 'userId is required.' });
+    }
+    if (mobile != null && mobile !== '') {
+      const mobileError = validateMobile(mobile);
+      if (mobileError) {
+        return res.status(400).json({ error: mobileError, message: mobileError, errors: { mobile: mobileError } });
+      }
+    }
+    await recordUserProfile(userId, name, email, mobile);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Profile update failed:', err);
+    return res.status(500).json({ error: 'Could not save profile details.' });
+  }
+};
+
 module.exports = {
   getAvatarHandler,
-  uploadAvatarHandler
+  uploadAvatarHandler,
+  updateProfileHandler,
 };

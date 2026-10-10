@@ -2,22 +2,26 @@ const { pool } = require('../database/db');
 
 const memoryUserProfiles = new Map();
 
-const recordUserProfile = async (userId, name, email) => {
+const recordUserProfile = async (userId, name, email, mobile) => {
   if (!userId) return;
   const cleanName = (name && typeof name === 'string' && name.trim()) 
     ? name.trim() 
     : (email && typeof email === 'string' ? email.split('@')[0] : `Merchant-${userId.slice(0, 6)}`);
   const cleanEmail = (email && typeof email === 'string' && email.trim()) ? email.trim() : '';
+  const cleanMobile = (mobile && typeof mobile === 'string' && mobile.trim())
+    ? mobile.trim().slice(0, 30)
+    : '';
 
   try {
     await pool.query(
-      `INSERT INTO user_profiles (user_id, name, email, last_active)
-       VALUES ($1, $2, $3, now())
+      `INSERT INTO user_profiles (user_id, name, email, mobile, last_active)
+       VALUES ($1, $2, $3, $4, now())
        ON CONFLICT (user_id) DO UPDATE SET
          name = CASE WHEN EXCLUDED.name != '' THEN EXCLUDED.name ELSE user_profiles.name END,
          email = CASE WHEN EXCLUDED.email != '' THEN EXCLUDED.email ELSE user_profiles.email END,
+         mobile = CASE WHEN EXCLUDED.mobile != '' THEN EXCLUDED.mobile ELSE user_profiles.mobile END,
          last_active = now()`,
-      [userId, cleanName, cleanEmail]
+      [userId, cleanName, cleanEmail, cleanMobile]
     );
   } catch (err) {
     const existing = memoryUserProfiles.get(userId) || {};
@@ -25,6 +29,7 @@ const recordUserProfile = async (userId, name, email) => {
       userId,
       name: cleanName || existing.name || 'Merchant',
       email: cleanEmail || existing.email || '',
+      mobile: cleanMobile || existing.mobile || '',
       lastActive: new Date().toISOString()
     });
   }
@@ -32,7 +37,7 @@ const recordUserProfile = async (userId, name, email) => {
 
 const getUserProfile = async (userId) => {
   try {
-    const res = await pool.query('SELECT name, email, avatar_url, last_active FROM user_profiles WHERE user_id = $1', [userId]);
+    const res = await pool.query('SELECT name, email, mobile, avatar_url, last_active FROM user_profiles WHERE user_id = $1', [userId]);
     if (res.rows[0]) {
       return res.rows[0];
     }
@@ -42,6 +47,7 @@ const getUserProfile = async (userId) => {
       return {
         name: mem.name || '',
         email: mem.email || '',
+        mobile: mem.mobile || '',
         avatar_url: mem.avatarUrl || '',
         last_active: mem.lastActive || new Date().toISOString()
       };

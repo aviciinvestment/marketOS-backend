@@ -15,6 +15,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 // hyphens, apostrophes or dots between name parts.
 const NAME_RE = /^[A-Za-z\u00C0-\u024F]+(?:[ .'\u2019-][A-Za-z\u00C0-\u024F]+)*$/;
 
+// Mobile numbers: optional leading +, then 10-15 digits (allows local Nigerian
+// numbers like 08012345678 and international ones like +2348012345678).
+const MOBILE_RE = /^\+?\d{10,15}$/;
+
 const normalize = (value) => (typeof value === 'string' ? value.trim() : '');
 
 const validateFullName = (fullName) => {
@@ -36,6 +40,16 @@ const validateEmail = (email) => {
   if (value.length > 254) return 'That email address is too long.';
   if (!EMAIL_RE.test(value)) {
     return 'Please enter a valid email address (e.g. name@example.com).';
+  }
+  return null;
+};
+
+const validateMobile = (mobile) => {
+  const raw = normalize(mobile);
+  if (!raw) return 'Please enter your mobile number.';
+  const cleaned = raw.replace(/[\s()-]/g, '');
+  if (!MOBILE_RE.test(cleaned)) {
+    return 'Please enter a valid mobile number (10-15 digits, e.g. 08012345678 or +2348012345678).';
   }
   return null;
 };
@@ -63,7 +77,7 @@ const buildResult = (errors) => {
 };
 
 const validateSignup = (payload = {}) => {
-  const { fullName, username, email, password, confirmPassword } = payload;
+  const { fullName, username, email, mobile, password, confirmPassword } = payload;
   const nameValue = fullName != null ? fullName : username;
 
   const errors = {};
@@ -72,6 +86,9 @@ const validateSignup = (payload = {}) => {
 
   const emailError = validateEmail(email);
   if (emailError) errors.email = emailError;
+
+  const mobileError = validateMobile(mobile);
+  if (mobileError) errors.mobile = mobileError;
 
   const passwordError = validatePassword(password);
   if (passwordError) errors.password = passwordError;
@@ -111,8 +128,10 @@ const validateForgotPassword = (payload = {}) => {
 module.exports = {
   EMAIL_RE,
   NAME_RE,
+  MOBILE_RE,
   validateFullName,
   validateEmail,
+  validateMobile,
   validatePassword,
   validateSignup,
   validateSignin,
