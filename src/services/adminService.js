@@ -1,4 +1,4 @@
-const { pool } = require('../database/db');
+const { pool, TYPES } = require('../database/db');
 const { memoryUserProfiles, getUserProfile } = require('../models/userProfileModel');
 const { memoryComplaints, getPendingCount, getComplaintsList, updateStatus } = require('../models/supportModel');
 
@@ -65,16 +65,18 @@ const getAdminStats = async (adminEmail) => {
   const userList = await Promise.all(allUserIds.map(async (uid) => {
     let name = '';
     let email = uid.includes('@') ? uid : '';
+    let mobile = '';
     let lastActive = new Date().toISOString();
     let productsCount = 0;
     let salesCount = 0;
     let totalVolume = 0;
 
     try {
-      const pRes = await pool.query('SELECT name, email, last_active FROM user_profiles WHERE user_id = $1', [uid]);
+      const pRes = await pool.query('SELECT name, email, mobile, last_active FROM user_profiles WHERE user_id = $1', [uid]);
       if (pRes.rows[0]) {
         name = pRes.rows[0].name || '';
         if (pRes.rows[0].email) email = pRes.rows[0].email;
+        if (pRes.rows[0].mobile) mobile = pRes.rows[0].mobile;
         if (pRes.rows[0].last_active) lastActive = pRes.rows[0].last_active;
       }
     } catch (e) {
@@ -82,11 +84,12 @@ const getAdminStats = async (adminEmail) => {
       if (mem) {
         name = mem.name || '';
         if (mem.email) email = mem.email;
+        if (mem.mobile) mobile = mem.mobile;
         if (mem.lastActive) lastActive = mem.lastActive;
       }
     }
 
-    // Check if user has filed a complaint with a verified phone number
+    // Phone number the merchant filed with a support complaint (if any).
     let phone = '';
     try {
       const compR = await pool.query('SELECT phone_number, user_email FROM support_complaints WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1', [uid]);
@@ -123,6 +126,7 @@ const getAdminStats = async (adminEmail) => {
       userId: uid,
       name,
       email: email || 'Direct Store Account',
+      mobile,
       phone,
       productsCount,
       salesCount,
@@ -145,6 +149,43 @@ const getAdminStats = async (adminEmail) => {
   };
 };
 
+// Permanently remove a merchant and all of their stored data. Runs in a single
+// transaction so a partial failure never leaves orphaned records behind.
+// Payment ledger rows are intentionally kept for financial audit/reconciliation.
+const deleteUser = async (userId) => {
+  if (!userId || typeof userId !== 'string') {
+    throw new Error('userId is required');
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const type of TYPES) {
+      await client.query(`DELETE FROM ${type} WHERE user_id = $1`, [userId]);
+    }
+    await client.query('DELETE FROM tombstones WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM sync_meta WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM support_complaints WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM insight_access WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM user_profiles WHERE user_id = $1', [userId]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  // Purge any in-memory fallback copies so the user really disappears.
+  memoryUserProfiles.delete(userId);
+  for (let i = memoryComplaints.length - 1; i >= 0; i--) {
+    if (memoryComplaints[i] && memoryComplaints[i].userId === userId) {
+      memoryComplaints.splice(i, 1);
+    }
+  }
+
+  return { ok: true, userId };
+};
+
 module.exports = {
   serverLogs,
   addServerLog,
@@ -152,6 +193,7 @@ module.exports = {
   clearLogs,
   recordTelemetry,
   getAdminStats,
+  deleteUser,
   getComplaintsList,
   updateStatus
 };

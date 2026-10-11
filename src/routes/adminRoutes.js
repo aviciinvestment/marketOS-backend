@@ -7,6 +7,7 @@ router.get('/admin/logs', adminController.getLogs);
 router.delete('/admin/logs', adminController.clearLogs);
 router.get('/admin/complaints', adminController.getComplaints);
 router.patch('/admin/complaints/:id', adminController.updateComplaint);
+router.delete('/admin/users/:userId', adminController.deleteUser);
 router.post('/admin/telemetry', adminController.recordTelemetry);
 router.get('/admin/paywall', adminController.getPaywallOverview);
 router.put('/admin/paywall', adminController.updatePaywallConfig);

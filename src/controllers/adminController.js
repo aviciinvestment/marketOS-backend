@@ -42,6 +42,17 @@ const updateComplaint = async (req, res) => {
   }
 };
 
+const deleteUser = async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await adminService.deleteUser(userId);
+    res.json(result);
+  } catch (err) {
+    console.error('[/api/admin/users/:userId] error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 const recordTelemetry = (req, res) => {
   const result = adminService.recordTelemetry(req.body, req.ip);
   res.json(result);
@@ -56,6 +67,7 @@ module.exports = {
   clearLogs,
   getComplaints,
   updateComplaint,
+  deleteUser,
   recordTelemetry,
   getPaywallOverview,
   updatePaywallConfig
