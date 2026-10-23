@@ -1,5 +1,6 @@
 const adminService = require('../services/adminService');
 const paywallController = require('./paywallController');
+const mobileAppModel = require('../models/mobileAppModel');
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 
@@ -61,6 +62,34 @@ const recordTelemetry = (req, res) => {
 const getPaywallOverview = paywallController.getAdminOverview;
 const updatePaywallConfig = paywallController.updateAdminConfig;
 
+const getMobileAppConfig = async (_req, res) => {
+  try {
+    const config = await mobileAppModel.getMobileAppSettings();
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const updateMobileAppConfig = async (req, res) => {
+  try {
+    const { downloadUrl, title, subtitle, enabled } = req.body || {};
+    const updated = await mobileAppModel.updateMobileAppSettings({ downloadUrl, title, subtitle, enabled });
+    res.json({ ok: true, message: 'Mobile app download link updated successfully', config: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const getPublicMobileAppConfig = async (_req, res) => {
+  try {
+    const config = await mobileAppModel.getMobileAppSettings();
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getStats,
   getLogs,
@@ -70,5 +99,8 @@ module.exports = {
   deleteUser,
   recordTelemetry,
   getPaywallOverview,
-  updatePaywallConfig
+  updatePaywallConfig,
+  getMobileAppConfig,
+  updateMobileAppConfig,
+  getPublicMobileAppConfig
 };

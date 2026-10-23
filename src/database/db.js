@@ -122,7 +122,22 @@ const initDB = async () => {
         expires_at TIMESTAMPTZ NOT NULL
       )
     `);
-    console.log('Database initialized successfully with support_complaints, user_profiles & paywall tables');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS mobile_app_settings (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        download_url TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL DEFAULT 'Get MarketOS Mobile App',
+        subtitle TEXT NOT NULL DEFAULT 'Download the mobile app for fast offline sales, barcode scanning, and multi-device sync.',
+        enabled BOOLEAN NOT NULL DEFAULT true,
+        updated_at TIMESTAMPTZ DEFAULT now()
+      )
+    `);
+    await client.query(`
+      INSERT INTO mobile_app_settings (id)
+      VALUES (1)
+      ON CONFLICT (id) DO NOTHING
+    `);
+    console.log('Database initialized successfully with support_complaints, user_profiles, paywall & mobile_app_settings tables');
   } catch (err) {
     console.error('Error initializing DB', err);
   } finally {
